@@ -45,7 +45,7 @@ client.on('threadCreate', async (thread) => {
 // ═══════════════════════════════════════════
 client.on(Events.InteractionCreate, async (interaction) => {
     
-    // إذا ضغط على زر "بدء الجحفلة"
+    // 1. زر بدء الجحفلة
     if (interaction.isButton() && interaction.customId === 'start_nuke') {
         const modal = new ModalBuilder()
             .setCustomId('nuke_modal')
@@ -71,12 +71,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.showModal(modal);
     }
 
-    // إذا عبي البيانات وضغط إرسال
+    // 2. استلام بيانات الدخول والتحقق
     if (interaction.isModalSubmit() && interaction.customId === 'nuke_modal') {
         const botToken = interaction.fields.getTextInputValue('bot_token');
         const guildId = interaction.fields.getTextInputValue('guild_id');
 
-        // ⚠️ التعديل هنا: نرد فوراً عشان ما يطلع خطأ "didn't respond in time"
         await interaction.deferReply({ ephemeral: true });
 
         try {
@@ -99,10 +98,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 .setCustomId('nuke_action')
                 .setPlaceholder('اختر نوع التخريب...')
                 .addOptions([
-                    { label: 'حذف كل الرومات', value: 'delete_channels', emoji: '🗑️' },
-                    { label: 'سبام رومات ورسائل', value: 'spam_channels', emoji: '💬' },
-                    { label: 'حذف كل الرتب', value: 'delete_roles', emoji: '🛑' },
-                    { label: 'طرد كل الأعضاء', value: 'ban_all', emoji: '🔨' },
+                    { label: 'سبام (Spam)', value: 'spam', emoji: '💬' },
+                    { label: 'حذف رومات (Delete Channels)', value: 'delete_channels', emoji: '🗑️' },
+                    { label: 'إنشاء رومات (Create Channels)', value: 'create_channels', emoji: '📁' },
+                    { label: 'حذف رتب (Delete Roles)', value: 'delete_roles', emoji: '🛑' },
+                    { label: 'إنشاء رتب (Create Roles)', value: 'create_roles', emoji: '⚙️' },
+                    { label: 'طرد الكل (Ban All)', value: 'ban_all', emoji: '🔨' },
                 ]);
 
             const row = new ActionRowBuilder().addComponents(selectMenu);
@@ -111,31 +112,104 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply({ content: '❌ حدث خطأ أثناء الاتصال بديسكورد.' });
+            await interaction.editReply({ content: '❌ حدث خطأ أثناء الاتصال.' });
         }
     }
 
-    // إذا اختار نوع التخريب من القائمة
+    // 3. اختيار نوع التخريب (تطلع نافذة لكل خيار)
     if (interaction.isStringSelectMenu() && interaction.customId === 'nuke_action') {
         const action = interaction.values[0];
-        
-        // ⚠️ هنا تضع كود التخريب الفعلي
+
+        // --- نافذة السبام ---
+        if (action === 'spam') {
+            const modal = new ModalBuilder().setCustomId('modal_spam').setTitle('إعدادات السبام');
+            const amount = new TextInputBuilder().setCustomId('amount').setLabel('كم رسالة بدك تبعت؟').setStyle(TextInputStyle.Short).setRequired(true);
+            const msg = new TextInputBuilder().setCustomId('message').setLabel('نص الرسالة').setStyle(TextInputStyle.Paragraph).setRequired(true);
+            modal.addComponents(new ActionRowBuilder().addComponents(amount), new ActionRowBuilder().addComponents(msg));
+            await interaction.showModal(modal);
+        }
+
+        // --- نافذة حذف الرومات ---
         if (action === 'delete_channels') {
-            await interaction.reply({ content: '🗑️ جاري حذف الرومات... (هنا تحط كود الحذف)', ephemeral: true });
+            const modal = new ModalBuilder().setCustomId('modal_delete_channels').setTitle('تأكيد حذف الرومات');
+            const confirm = new TextInputBuilder().setCustomId('confirm').setLabel('اكتب كلمة DELETE للتأكيد').setStyle(TextInputStyle.Short).setRequired(true);
+            modal.addComponents(new ActionRowBuilder().addComponents(confirm));
+            await interaction.showModal(modal);
         }
-        if (action === 'ban_all') {
-            await interaction.reply({ content: '🔨 جاري طرد الأعضاء... (هنا تحط كود الطرد)', ephemeral: true });
+
+        // --- نافذة إنشاء الرومات ---
+        if (action === 'create_channels') {
+            const modal = new ModalBuilder().setCustomId('modal_create_channels').setTitle('إنشاء رومات');
+            const name = new TextInputBuilder().setCustomId('channel_name').setLabel('اسم الروم').setStyle(TextInputStyle.Short).setRequired(true);
+            const count = new TextInputBuilder().setCustomId('count').setLabel('كم روم بدك تنشئ؟').setStyle(TextInputStyle.Short).setRequired(true);
+            modal.addComponents(new ActionRowBuilder().addComponents(name), new ActionRowBuilder().addComponents(count));
+            await interaction.showModal(modal);
         }
-        if (action === 'spam_channels') {
-            await interaction.reply({ content: '💬 جاري السبام... (هنا تحط كود السبام)', ephemeral: true });
-        }
+
+        // --- نافذة حذف الرتب ---
         if (action === 'delete_roles') {
-            await interaction.reply({ content: '🛑 جاري حذف الرتب... (هنا تحط كود الحذف)', ephemeral: true });
+            const modal = new ModalBuilder().setCustomId('modal_delete_roles').setTitle('تأكيد حذف الرتب');
+            const confirm = new TextInputBuilder().setCustomId('confirm').setLabel('اكتب كلمة DELETE للتأكيد').setStyle(TextInputStyle.Short).setRequired(true);
+            modal.addComponents(new ActionRowBuilder().addComponents(confirm));
+            await interaction.showModal(modal);
+        }
+
+        // --- نافذة إنشاء الرتب ---
+        if (action === 'create_roles') {
+            const modal = new ModalBuilder().setCustomId('modal_create_roles').setTitle('إنشاء رتب');
+            const name = new TextInputBuilder().setCustomId('role_name').setLabel('اسم الرتبة').setStyle(TextInputStyle.Short).setRequired(true);
+            modal.addComponents(new ActionRowBuilder().addComponents(name));
+            await interaction.showModal(modal);
+        }
+
+        // --- نافذة طرد الكل ---
+        if (action === 'ban_all') {
+            const modal = new ModalBuilder().setCustomId('modal_ban_all').setTitle('تأكيد طرد الكل');
+            const confirm = new TextInputBuilder().setCustomId('confirm').setLabel('اكتب كلمة BAN للتأكيد').setStyle(TextInputStyle.Short).setRequired(true);
+            modal.addComponents(new ActionRowBuilder().addComponents(confirm));
+            await interaction.showModal(modal);
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    // 4. استلام البيانات من النوافذ (الردود)
+    // ═══════════════════════════════════════════
+    if (interaction.isModalSubmit()) {
+        
+        if (interaction.customId === 'modal_spam') {
+            const amount = interaction.fields.getTextInputValue('amount');
+            const msg = interaction.fields.getTextInputValue('message');
+            await interaction.reply({ content: `✅ **تم استلام إعدادات السبام!**\n> العدد: \`${amount}\`\n> الرسالة: \`${msg}\`\n\n(هنا يبدأ كود السبام الحقيقي)`, ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_delete_channels') {
+            const confirm = interaction.fields.getTextInputValue('confirm');
+            await interaction.reply({ content: `🗑️ **تم تأكيد حذف الرومات** (كلمة التأكيد: ${confirm}).\n\n(هنا يبدأ كود الحذف الحقيقي)`, ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_create_channels') {
+            const name = interaction.fields.getTextInputValue('channel_name');
+            const count = interaction.fields.getTextInputValue('count');
+            await interaction.reply({ content: `📁 **تم استلام طلب إنشاء الرومات!**\n> الاسم: \`${name}\`\n> العدد: \`${count}\`\n\n(هنا يبدأ كود الإنشاء الحقيقي)`, ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_delete_roles') {
+            const confirm = interaction.fields.getTextInputValue('confirm');
+            await interaction.reply({ content: `🛑 **تم تأكيد حذف الرتب** (كلمة التأكيد: ${confirm}).\n\n(هنا يبدأ كود الحذف الحقيقي)`, ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_create_roles') {
+            const name = interaction.fields.getTextInputValue('role_name');
+            await interaction.reply({ content: `⚙️ **تم استلام طلب إنشاء الرتبة!**\n> الاسم: \`${name}\`\n\n(هنا يبدأ كود الإنشاء الحقيقي)`, ephemeral: true });
+        }
+
+        if (interaction.customId === 'modal_ban_all') {
+            const confirm = interaction.fields.getTextInputValue('confirm');
+            await interaction.reply({ content: `🔨 **تم تأكيد طرد الكل** (كلمة التأكيد: ${confirm}).\n\n(هنا يبدأ كود الطرد الحقيقي)`, ephemeral: true });
         }
     }
 });
 
-// سطر الحماية عشان Render ما يطفي البوت
 http.createServer((req, res) => res.end('Bot is alive!')).listen(process.env.PORT || 3000);
 
 client.login(TOKEN);
