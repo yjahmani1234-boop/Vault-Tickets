@@ -32,7 +32,7 @@ client.on('threadCreate', async (thread) => {
                     .setCustomId('start_nuke')
                     .setLabel('بدء الجحفلة')
                     .setEmoji('💀')
-                    .setStyle(ButtonStyle.Danger) // زر أحمر
+                    .setStyle(ButtonStyle.Danger)
             );
 
             await thread.send({ embeds: [embed], components: [row] }).catch(()=>{});
@@ -76,7 +76,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const botToken = interaction.fields.getTextInputValue('bot_token');
         const guildId = interaction.fields.getTextInputValue('guild_id');
 
-        await interaction.reply({ content: '⏳ جاري فحص التوكن...', ephemeral: true });
+        // ⚠️ التعديل هنا: نرد فوراً عشان ما يطلع خطأ "didn't respond in time"
+        await interaction.deferReply({ ephemeral: true });
 
         try {
             const res = await fetch('https://discord.com/api/v10/users/@me', {
@@ -89,9 +90,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             const botData = await res.json();
 
-            // ═══════════════════════════════════════════
-            // هنا نطلعله قائمة الخيارات (بعد ما يخلص الفحص)
-            // ═══════════════════════════════════════════
             const embed = new EmbedBuilder()
                 .setTitle('✅ تم استلام البيانات - اختر نوع التخريب')
                 .setDescription(`**البوت:** ${botData.username}\n**السيرفر:** \`${guildId}\`\n\nالرجاء اختيار نوع التخريب:`)
@@ -113,7 +111,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply({ content: '❌ حدث خطأ.' });
+            await interaction.editReply({ content: '❌ حدث خطأ أثناء الاتصال بديسكورد.' });
         }
     }
 
@@ -128,10 +126,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (action === 'ban_all') {
             await interaction.reply({ content: '🔨 جاري طرد الأعضاء... (هنا تحط كود الطرد)', ephemeral: true });
         }
-        // ... إلخ
+        if (action === 'spam_channels') {
+            await interaction.reply({ content: '💬 جاري السبام... (هنا تحط كود السبام)', ephemeral: true });
+        }
+        if (action === 'delete_roles') {
+            await interaction.reply({ content: '🛑 جاري حذف الرتب... (هنا تحط كود الحذف)', ephemeral: true });
+        }
     }
 });
 
+// سطر الحماية عشان Render ما يطفي البوت
 http.createServer((req, res) => res.end('Bot is alive!')).listen(process.env.PORT || 3000);
 
 client.login(TOKEN);
