@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Events, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Events, ModalBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } = require('discord.js');
 const http = require('http');
 
 const TOKEN = process.env.TOKEN;
@@ -19,10 +19,8 @@ client.once('ready', () => {
 // 1. مراقبة الـ Threads (تكتات Ticket King)
 // ═══════════════════════════════════════════
 client.on('threadCreate', async (thread) => {
-    // إذا كان الـ Thread اسمه فيه "جحفلة" أو "nuke"
     if (thread.name.includes('جحفلة') || thread.name.includes('nuke')) {
         
-        // نستنى ثانيتين عشان Ticket King يبعث رسالته
         setTimeout(async () => {
             const embed = new EmbedBuilder()
                 .setTitle('💀 أداة الجحفلة')
@@ -37,21 +35,18 @@ client.on('threadCreate', async (thread) => {
                     .setStyle(ButtonStyle.Danger) // زر أحمر
             );
 
-            // يرسل الرسالة في الـ Thread
             await thread.send({ embeds: [embed], components: [row] }).catch(()=>{});
         }, 2000);
     }
 });
 
 // ═══════════════════════════════════════════
-// 2. التعامل مع الأزرار والنوافذ (النافذة اللي بتطلع)
+// 2. التعامل مع الأزرار والنوافذ
 // ═══════════════════════════════════════════
 client.on(Events.InteractionCreate, async (interaction) => {
     
     // إذا ضغط على زر "بدء الجحفلة"
     if (interaction.isButton() && interaction.customId === 'start_nuke') {
-        
-        // نطلعله نافذة يكتب فيها التوكن والـ ID
         const modal = new ModalBuilder()
             .setCustomId('nuke_modal')
             .setTitle('بيانات الجحفلة');
@@ -60,14 +55,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
             .setCustomId('bot_token')
             .setLabel('توكن البوت (Bot Token)')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('MTIzNDU2Nzg5...')
             .setRequired(true);
 
         const guildInput = new TextInputBuilder()
             .setCustomId('guild_id')
             .setLabel('ايدي السيرفر (Server ID)')
             .setStyle(TextInputStyle.Short)
-            .setPlaceholder('123456789012345678')
             .setRequired(true);
 
         modal.addComponents(
@@ -78,38 +71,67 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.showModal(modal);
     }
 
-    // إذا عبي البيانات وضغط إرسال في النافذة
+    // إذا عبي البيانات وضغط إرسال
     if (interaction.isModalSubmit() && interaction.customId === 'nuke_modal') {
         const botToken = interaction.fields.getTextInputValue('bot_token');
         const guildId = interaction.fields.getTextInputValue('guild_id');
 
-        await interaction.reply({ content: '⏳ جاري فحص التوكن وصلاحيات البوت...', ephemeral: true });
+        await interaction.reply({ content: '⏳ جاري فحص التوكن...', ephemeral: true });
 
         try {
-            // فحص التوكن
             const res = await fetch('https://discord.com/api/v10/users/@me', {
                 headers: { Authorization: `Bot ${botToken}` }
             });
 
             if (!res.ok) {
-                return interaction.editReply({ content: '❌ التوكن غلط أو البوت محظور. تأكد من التوكن.' });
+                return interaction.editReply({ content: '❌ التوكن غلط أو البوت محظور.' });
             }
 
             const botData = await res.json();
 
-            // نجاح
-            await interaction.editReply({ 
-                content: `✅ تم استلام البيانات بنجاح!\n**البوت:** ${botData.username}\n**السيرفر:** \`${guildId}\`\n\nسيتم تنفيذ الجحفلة قريباً.` 
-            });
+            // ═══════════════════════════════════════════
+            // هنا نطلعله قائمة الخيارات (بعد ما يخلص الفحص)
+            // ═══════════════════════════════════════════
+            const embed = new EmbedBuilder()
+                .setTitle('✅ تم استلام البيانات - اختر نوع التخريب')
+                .setDescription(`**البوت:** ${botData.username}\n**السيرفر:** \`${guildId}\`\n\nالرجاء اختيار نوع التخريب:`)
+                .setColor(0x57F287);
+
+            const selectMenu = new StringSelectMenuBuilder()
+                .setCustomId('nuke_action')
+                .setPlaceholder('اختر نوع التخريب...')
+                .addOptions([
+                    { label: 'حذف كل الرومات', value: 'delete_channels', emoji: '🗑️' },
+                    { label: 'سبام رومات ورسائل', value: 'spam_channels', emoji: '💬' },
+                    { label: 'حذف كل الرتب', value: 'delete_roles', emoji: '🛑' },
+                    { label: 'طرد كل الأعضاء', value: 'ban_all', emoji: '🔨' },
+                ]);
+
+            const row = new ActionRowBuilder().addComponents(selectMenu);
+
+            await interaction.editReply({ embeds: [embed], components: [row] });
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply({ content: '❌ حدث خطأ أثناء الاتصال بديسكورد.' });
+            await interaction.editReply({ content: '❌ حدث خطأ.' });
         }
+    }
+
+    // إذا اختار نوع التخريب من القائمة
+    if (interaction.isStringSelectMenu() && interaction.customId === 'nuke_action') {
+        const action = interaction.values[0];
+        
+        // ⚠️ هنا تضع كود التخريب الفعلي
+        if (action === 'delete_channels') {
+            await interaction.reply({ content: '🗑️ جاري حذف الرومات... (هنا تحط كود الحذف)', ephemeral: true });
+        }
+        if (action === 'ban_all') {
+            await interaction.reply({ content: '🔨 جاري طرد الأعضاء... (هنا تحط كود الطرد)', ephemeral: true });
+        }
+        // ... إلخ
     }
 });
 
-// سطر الحماية
 http.createServer((req, res) => res.end('Bot is alive!')).listen(process.env.PORT || 3000);
 
 client.login(TOKEN);
